@@ -8,7 +8,7 @@ import (
 )
 
 // Maximum number of simultaneous client connections.
-const maxClients = 10
+const maxClients = 3
 
 // ChatServer holds all the server information and data required to manage the chat.
 type ChatServer struct {
