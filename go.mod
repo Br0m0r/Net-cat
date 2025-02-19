@@ -1,3 +1,3 @@
-module Net-Cat
+module kity
 
-go 1.23.0
+go 1.22.9
