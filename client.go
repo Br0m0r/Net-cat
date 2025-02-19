@@ -23,51 +23,82 @@ type Client struct {
 func (s *ChatServer) handleClient(conn net.Conn) {
 	defer conn.Close()
 
-	// Track the new client immediately in the map with an empty name
 	s.mu.Lock()
 	s.clients[conn] = &Client{conn: conn, name: ""}
-	numUsers := len(s.clients) // Get current user count
+	numUsers := len(s.clients)
 	s.mu.Unlock()
 
-	// Notify server log
 	log.Printf("New client connected. [%d users online]", numUsers)
 
-	// Send the welcome message
-	s.sendWelcome(conn)
+	// ✅ Send the formatted welcome message
+	welcomeMessage := FormatWelcomeMessage()
+	conn.Write([]byte(welcomeMessage))
 
-	// Channel to track when a name is entered
-	nameEntered := make(chan string)
+	// Channels to track user actions
+	nameEntered := make(chan string, 1)
+	disconnected := make(chan struct{})
 
 	// Start a goroutine for the timeout mechanism
 	go func() {
 		select {
 		case <-time.After(30 * time.Second): // ⏳ Timeout after 30 seconds
-			conn.Write([]byte("\nTimeout: You took too long to enter a name. Disconnecting...\n"))
+			s.mu.Lock()
+			if client, exists := s.clients[conn]; exists && client.name == "" {
+				conn.Write([]byte(FormatSystemMessage("\nTimeout: You took too long to enter a name. Disconnecting...\n")))
+				delete(s.clients, conn)
+			}
+			s.mu.Unlock()
 			conn.Close()
-		case name := <-nameEntered: // ✅ User entered a name before timeout
-			client := s.clients[conn]
-			client.name = name
-			joinMsg := FormatSystemMessage(fmt.Sprintf("%s has joined our chat! [%d users online]", name, numUsers))
-			s.broadcast(joinMsg)
+		case name := <-nameEntered:
+			s.mu.Lock()
+			if client, exists := s.clients[conn]; exists {
+				client.name = name
+				joinMsg := FormatSystemMessage(fmt.Sprintf("%s has joined our chat! [%d users online]", name, len(s.clients)))
+				s.broadcast(joinMsg)
+
+				// ✅ Send chat history to the new client
+				if len(s.history) > 0 {
+					conn.Write([]byte(FormatSystemMessage("\n--- Chat History ---\n")))
+					for _, msg := range s.history {
+						conn.Write([]byte(msg + "\n"))
+					}
+					conn.Write([]byte(FormatSystemMessage("\n--- End of History ---\n\n")))
+				}
+			}
+			s.mu.Unlock()
+		case <-disconnected:
+			return
 		}
 	}()
 
-	// Prompt for a name (runs in the main goroutine)
-	name, err := s.promptName(conn)
-	if err != nil {
-		log.Println("Error reading name:", err)
+	// ✅ Prompt for a name (loop until a valid name is entered)
+	scanner := bufio.NewScanner(conn)
+	var name string
+	conn.Write([]byte(FormatSystemMessage("[ENTER YOUR NAME]: ")))
+	for scanner.Scan() {
+		name = strings.TrimSpace(scanner.Text())
+		if name != "" {
+			break // ✅ Valid name entered, proceed
+		}
+		conn.Write([]byte(FormatSystemMessage("Name cannot be empty. Please enter your name: ")))
+	}
+
+	if name == "" { // ✅ Handle case where scanner fails (EOF)
+		log.Println("Client disconnected before entering a name")
+		close(disconnected)
+		s.mu.Lock()
+		delete(s.clients, conn)
+		s.mu.Unlock()
 		return
 	}
 
-	// Send name to cancel timeout and continue
-	nameEntered <- name
+	nameEntered <- name // ✅ Send name to cancel the timeout
 
-	// Listen for messages from this client
-	scanner := bufio.NewScanner(conn)
+	// ✅ Listen for messages from this client
 	for scanner.Scan() {
-		msg := scanner.Text()
-		if strings.TrimSpace(msg) == "" {
-			continue // Ignore empty messages
+		msg := strings.TrimSpace(scanner.Text())
+		if msg == "" {
+			continue
 		}
 
 		formattedMsg := FormatChatMessage(
@@ -75,16 +106,16 @@ func (s *ChatServer) handleClient(conn net.Conn) {
 			name,
 			msg,
 		)
+
 		s.broadcast(formattedMsg)
 	}
 
-	// Handle client disconnection
+	// ✅ Handle client disconnection
 	s.mu.Lock()
-	delete(s.clients, conn)   // Remove from client list
-	numUsers = len(s.clients) // Update user count after removal
+	delete(s.clients, conn)
+	numUsers = len(s.clients)
 	s.mu.Unlock()
 
-	// Log the disconnect
 	log.Printf("Client disconnected: %s [%d users online]", name, numUsers)
 
 	// ✅ Only broadcast if the client had a name
