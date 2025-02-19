@@ -66,19 +66,20 @@ func (s *ChatServer) Start() {
 
 		// Lock the clients map to check the current number of connected clients.
 		s.mu.Lock()
-		// If the maximum number of clients is reached, notify the new connection and close it.
 		if len(s.clients) >= maxClients {
-			s.mu.Unlock()
 			conn.Write([]byte("Server is full. Try again later.\n"))
 			conn.Close()
-			continue
+			s.mu.Unlock()
+			return
 		}
-		// Unlock the clients map after checking.
+
+		// ✅ Immediately add the client to prevent race conditions
+		s.clients[conn] = &Client{conn: conn, name: ""}
 		s.mu.Unlock()
 
-		// Handle the new client connection concurrently.
-		// Note: handleClient is defined in client.go.
+		// Start handling the client
 		go s.handleClient(conn)
+
 	}
 }
 
