@@ -24,7 +24,6 @@ func (s *ChatServer) handleClient(conn net.Conn) {
 	defer conn.Close()
 
 	s.mu.Lock()
-	s.clients[conn] = &Client{conn: conn, name: ""}
 	numUsers := len(s.clients)
 	s.mu.Unlock()
 
@@ -55,6 +54,15 @@ func (s *ChatServer) handleClient(conn net.Conn) {
 				client.name = name
 				joinMsg := FormatSystemMessage(fmt.Sprintf("%s has joined our chat! [%d users online]", name, len(s.clients)))
 				s.broadcast(joinMsg)
+
+				// ✅ Send chat history to the new user
+				if len(s.history) > 0 {
+					conn.Write([]byte(FormatSystemMessage("\n--- Chat History ---\n")))
+					for _, msg := range s.history {
+						conn.Write([]byte(msg + "\n"))
+					}
+					conn.Write([]byte(FormatSystemMessage("\n--- End of History ---\n\n")))
+				}
 			}
 			s.mu.Unlock()
 		case <-disconnected:
