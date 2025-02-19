@@ -55,15 +55,6 @@ func (s *ChatServer) handleClient(conn net.Conn) {
 				client.name = name
 				joinMsg := FormatSystemMessage(fmt.Sprintf("%s has joined our chat! [%d users online]", name, len(s.clients)))
 				s.broadcast(joinMsg)
-
-				// ✅ Send chat history to the new client
-				if len(s.history) > 0 {
-					conn.Write([]byte(FormatSystemMessage("\n--- Chat History ---\n")))
-					for _, msg := range s.history {
-						conn.Write([]byte(msg + "\n"))
-					}
-					conn.Write([]byte(FormatSystemMessage("\n--- End of History ---\n\n")))
-				}
 			}
 			s.mu.Unlock()
 		case <-disconnected:
@@ -71,16 +62,31 @@ func (s *ChatServer) handleClient(conn net.Conn) {
 		}
 	}()
 
-	// ✅ Prompt for a name (loop until a valid name is entered)
+	// ✅ Prompt for a name (loop until a valid and unique name is entered)
 	scanner := bufio.NewScanner(conn)
 	var name string
 	conn.Write([]byte(FormatSystemMessage("[ENTER YOUR NAME]: ")))
 	for scanner.Scan() {
 		name = strings.TrimSpace(scanner.Text())
-		if name != "" {
-			break // ✅ Valid name entered, proceed
+
+		// ✅ Check if the name is already taken
+		s.mu.Lock()
+		isTaken := false
+		for _, client := range s.clients {
+			if client.name == name {
+				isTaken = true
+				break
+			}
 		}
-		conn.Write([]byte(FormatSystemMessage("Name cannot be empty. Please enter your name: ")))
+		s.mu.Unlock()
+
+		if name == "" {
+			conn.Write([]byte(FormatSystemMessage("Name cannot be empty. Please enter your name: ")))
+		} else if isTaken {
+			conn.Write([]byte(FormatSystemMessage("This username is already taken. Please choose another: ")))
+		} else {
+			break // ✅ Valid and unique name entered
+		}
 	}
 
 	if name == "" { // ✅ Handle case where scanner fails (EOF)
