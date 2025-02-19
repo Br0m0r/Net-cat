@@ -35,14 +35,6 @@ func (s *ChatServer) handleClient(conn net.Conn) {
 		return
 	}
 
-	// Create a new Client instance with the connection and chosen name.
-	client := &Client{conn: conn, name: name}
-
-	// Register the client in the server's clients map.
-	s.mu.Lock()
-	s.clients[conn] = client
-	s.mu.Unlock()
-
 	// Send the stored chat history to the new client.
 	s.sendHistory(conn)
 
