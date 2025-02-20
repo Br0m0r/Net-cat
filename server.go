@@ -8,7 +8,7 @@ import (
 )
 
 // Maximum number of simultaneous client connections.
-const maxClients = 3
+const maxClients = 2
 
 // ChatServer holds all the server information and data required to manage the chat.
 type ChatServer struct {
@@ -70,7 +70,7 @@ func (s *ChatServer) Start() {
 			conn.Write([]byte("Server is full. Try again later.\n"))
 			conn.Close()
 			s.mu.Unlock()
-			return
+			continue
 		}
 
 		// ✅ Immediately add the client to prevent race conditions
@@ -93,6 +93,9 @@ func (s *ChatServer) handleBroadcast() {
 		s.history = append(s.history, msg)
 		// Loop through each connected client.
 		for conn, client := range s.clients {
+			if client.name == "" || conn == client.conn {
+				continue
+			}
 			// Send the message to the client.
 			_, err := fmt.Fprintf(conn, "%s\n", msg)
 			// Log an error if there's an issue sending the message.
