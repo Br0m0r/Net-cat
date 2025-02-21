@@ -47,6 +47,7 @@ func NewChatServer(port string) (*ChatServer, error) {
 	}
 
 	return server, nil
+
 }
 
 // Start begins accepting client connections and handling broadcasts.
@@ -93,7 +94,7 @@ func (s *ChatServer) handleBroadcast() {
 		s.history = append(s.history, msg)
 		// Loop through each connected client.
 		for conn, client := range s.clients {
-			if client.name == "" || conn == client.conn {
+			if client.name == "" {
 				continue
 			}
 			// Send the message to the client.
