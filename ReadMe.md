@@ -12,7 +12,7 @@ net-cat is a Go-based group chat application that mimics key features of the cla
 - **Message Broadcasting:** Sends messages with a timestamp and sender's name to all connected clients.
 - **Join/Leave Notifications:** Notifies all clients when someone joins or leaves.
 - **Concurrency:** Utilizes goroutines, channels, and mutexes for concurrent operations.
-- **Allowed Packages:** Uses only permitted packages such as `io`, `log`, `os`, `fmt`, `net`, `sync`, `time`, `bufio`, `errors`, `strings`, and `reflect`.
+
 
 ## Installation
 
@@ -24,121 +24,88 @@ net-cat is a Go-based group chat application that mimics key features of the cla
 
     Build the project (optional):
 
-    make build
+    You can build the binary with:
+
+    go build -o net-cat .
 
 Usage
 Running the Server
 
-You can run the server directly using Go or via the Makefile targets.
-
     Default Port (8989):
 
-make run
+    Run the server with:
 
-Custom Port (2525):
+go run .
 
-make run-custom
+Custom Port (e.g., 2525):
+
+Run the server with:
+
+go run . 2525
 
 Invalid Usage:
-Running with extra parameters (e.g., ./net-cat 2525 localhost) displays:
+If extra parameters are provided (e.g., go run . 2525 localhost), the server displays a usage message:
 
     [USAGE]: ./TCPChat $port
 
 Connecting as a Client
 
-Use NetCat (nc) to connect to the server. For example, if the server is running on port 8989:
+Use NetCat (nc) or any TCP client to connect to the server. For example, if the server is running on port 8989:
 
 nc localhost 8989
 
-Upon connection, the client will see a welcome message with an ASCII art logo and a prompt to enter a username.
+Upon connection, you will see a welcome message with an ASCII art logo and a prompt to enter your username.
 Testing
 
 To verify key functionalities, follow these steps:
 
     Usage Test:
-    Run the usage test to confirm that extra parameters trigger the usage message.
+    Run the server with extra parameters to confirm that the usage message is triggered:
 
-make test
+go run . 2525 localhost
 
-Audit Reference:
-"Try running ./TCPChat 2525 localhost. Did the server respond with usage, as above?"
+Expected Output:
+
+[USAGE]: ./TCPChat $port
 
 Multi-Client Test:
 
-    Open one terminal and run:
+    Open one terminal and run the server on a custom port:
 
-make run-custom
+go run . 2525
 
 Open two or more separate terminals and connect using:
 
         nc localhost 2525
 
     Verify that:
-        Clients receive the welcome message and prompt for their name.
-        When a client enters a valid name, all clients are notified.
-        Messages are broadcast with proper timestamps and sender names.
-        A new client sees all previous messages.
-        Remaining clients receive notifications if a client disconnects.
-
-    Audit Reference:
-    These steps cover several functional audit checkpoints regarding client connection, message broadcasting, chat history, and disconnection notifications.
+        Each client receives the welcome message and is prompted for a username.
+        When a client enters a valid name, all connected clients are notified of the new join.
+        Messages are broadcast to all clients with proper timestamps and sender names.
+        A new client receives the complete chat history upon connection.
+        When a client disconnects, the remaining clients receive a notification.
 
     Multi-Computer Test:
     Ensure that clients on different computers can connect and exchange messages.
 
-Makefile Targets and Audit Mapping
-
-    make build
-    What it does: Compiles the net-cat binary.
-    Audit Check: Validates project compilation (addresses "Invalid compilation" concerns).
-
-    make run
-    What it does: Runs the server on the default port (8989).
-    Audit Check:
-    "Try running ./TCPChat. Is the server listening for connections on the default port?"
-
-    make run-custom
-    What it does: Runs the server on port 2525.
-    Audit Check:
-    "Try running ./TCPChat 2525. Is the server listening for connections on the port 2525?"
-
-    make test
-    What it does: Executes a usage test with extra arguments.
-    Audit Check:
-    "Try running ./TCPChat 2525 localhost. Did the server respond with usage, as above?"
-
-    make clean
-    What it does: Removes the compiled net-cat binary.
-    Audit Check:
-    Ensures a clean build environment, following good project practices.
-
-Run a target by executing:
-
-make <target>
-
-For example:
-
-make build
-make run
-make run-custom
-make test
-make clean
-
+These tests cover functional audit checkpoints such as verifying server port handling, client connectivity, message formatting, broadcast functionality, and proper notifications on join/leave events.
 Project Structure
 
     main.go:
-    Entry point; parses command-line arguments and starts the server.
+    Entry point of the application; parses command-line arguments and starts the server.
 
     server.go:
-    Contains the ChatServer struct and methods for handling connections, broadcasting messages, and managing chat history.
+    Contains the ChatServer struct and methods for accepting connections, broadcasting messages, and managing chat history.
 
     client.go:
-    Manages client-specific operations such as prompting for usernames and handling message exchanges.
+    Manages client-specific operations such as prompting for usernames, handling message input/output, and managing disconnections.
 
     formatter.go:
-    Provides functions to format chat messages, system messages, and the welcome banner using ANSI color codes.
+    Provides helper functions to format chat messages, system messages, and the welcome banner using ANSI color codes.
 
 License
 
 This project is licensed under the MIT License.
+
+mfoteino , cm
 
