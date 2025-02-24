@@ -9,173 +9,153 @@ import (
 	"time"
 )
 
-// Client holds individual client details.
+// Client struct is defined in client.go and holds details for each client.
 type Client struct {
-	// conn represents the client's TCP connection.
 	conn net.Conn
-	// name holds the client's chosen username.
 	name string
 }
 
-// handleClient manages a new client by handling the welcome sequence,
-// registering the client’s name, sending chat history, and continuously
-// reading and broadcasting the client's messages.
-func (s *ChatServer) handleClient(conn net.Conn) {
-	defer conn.Close()
+// handleClient manages the client's connection, name registration, history delivery, and message handling. (Defined in client.go)
+func (server *ChatServer) handleClient(connection net.Conn) {
+	defer connection.Close()
 
-	s.mu.Lock()
-	numUsers := len(s.clients)
-	s.mu.Unlock()
+	server.mutex.Lock()
+	activeClients := len(server.clients)
+	server.mutex.Unlock()
 
-	log.Printf("New client connected. [%d users online]", numUsers)
+	log.Printf("New client connected. [%d users online]", activeClients)
 
-	// ✅ Send the formatted welcome message
+	// Send the welcome message (using FormatWelcomeMessage defined in formatter.go)
 	welcomeMessage := FormatWelcomeMessage()
-	conn.Write([]byte(welcomeMessage))
+	connection.Write([]byte(welcomeMessage))
 
-	// Channels to track user actions
-	nameEntered := make(chan string, 1)
-	disconnected := make(chan struct{})
+	nameChan := make(chan string, 1)
+	disconnectChan := make(chan struct{})
 
-	// Start a goroutine for the timeout mechanism
+	// Timeout mechanism for name entry.
 	go func() {
 		select {
-		case <-time.After(30 * time.Second): // ⏳ Timeout after 30 seconds
-			s.mu.Lock()
-			if client, exists := s.clients[conn]; exists && client.name == "" {
-				conn.Write([]byte(FormatSystemMessage("\nTimeout: You took too long to enter a name. Disconnecting...\n")))
-				delete(s.clients, conn)
+		case <-time.After(30 * time.Second):
+			server.mutex.Lock()
+			if client, exists := server.clients[connection]; exists && client.name == "" {
+				connection.Write([]byte(FormatSystemMessage("\nTimeout: You took too long to enter a name. Disconnecting...\n")))
+				delete(server.clients, connection)
 			}
-			s.mu.Unlock()
-			conn.Close()
-		case name := <-nameEntered:
-			s.mu.Lock()
-			if client, exists := s.clients[conn]; exists {
-				client.name = name
-				joinMsg := FormatSystemMessage(fmt.Sprintf("%s has joined our chat! [%d users online]", name, len(s.clients)))
-				s.broadcast(joinMsg)
-
-				// ✅ Send chat history to the new user
-				if len(s.history) > 0 {
-					conn.Write([]byte(FormatSystemMessage("\n--- Chat History ---\n")))
-					for _, msg := range s.history {
-						conn.Write([]byte(msg + "\n"))
+			server.mutex.Unlock()
+			connection.Close()
+		case enteredName := <-nameChan:
+			server.mutex.Lock()
+			if client, exists := server.clients[connection]; exists {
+				client.name = enteredName
+				joinMessage := FormatSystemMessage(fmt.Sprintf("%s has joined our chat! [%d users online]", enteredName, len(server.clients)))
+				server.broadcast(joinMessage)
+				// Send chat history to the new client.
+				if len(server.history) > 0 {
+					connection.Write([]byte(FormatSystemMessage("\n--- Chat History ---\n")))
+					for _, pastMessage := range server.history {
+						connection.Write([]byte(pastMessage + "\n"))
 					}
-					conn.Write([]byte(FormatSystemMessage("\n--- End of History ---\n\n")))
+					connection.Write([]byte(FormatSystemMessage("\n--- End of History ---\n\n")))
 				}
 			}
-			s.mu.Unlock()
-		case <-disconnected:
+			server.mutex.Unlock()
+		case <-disconnectChan:
 			return
 		}
 	}()
 
-	// ✅ Prompt for a name (loop until a valid and unique name is entered)
-	scanner := bufio.NewScanner(conn)
-	var name string
-	conn.Write([]byte(FormatSystemMessage("[ENTER YOUR NAME]: ")))
+	scanner := bufio.NewScanner(connection)
+	var clientName string
+	connection.Write([]byte(FormatSystemMessage("[ENTER YOUR NAME]: ")))
 	for scanner.Scan() {
-		name = strings.TrimSpace(scanner.Text())
+		clientName = strings.TrimSpace(scanner.Text())
 
-		// ✅ Check if the name is already taken
-		s.mu.Lock()
-		isTaken := false
-		for _, client := range s.clients {
-			if client.name == name {
-				isTaken = true
+		server.mutex.Lock()
+		nameTaken := false
+		for _, connectedClient := range server.clients {
+			if connectedClient.name == clientName {
+				nameTaken = true
 				break
 			}
 		}
-		s.mu.Unlock()
+		server.mutex.Unlock()
 
-		if name == "" {
-			conn.Write([]byte(FormatSystemMessage("Name cannot be empty. Please enter your name: ")))
-		} else if isTaken {
-			conn.Write([]byte(FormatSystemMessage("This username is already taken. Please choose another: ")))
+		if clientName == "" {
+			connection.Write([]byte(FormatSystemMessage("Name cannot be empty. Please enter your name: ")))
+		} else if nameTaken {
+			connection.Write([]byte(FormatSystemMessage("This username is already taken. Please choose another: ")))
 		} else {
-			break // ✅ Valid and unique name entered
+			break
 		}
 	}
 
-	if name == "" { // ✅ Handle case where scanner fails (EOF)
+	if clientName == "" {
 		log.Println("Client disconnected before entering a name")
-		close(disconnected)
-		s.mu.Lock()
-		delete(s.clients, conn)
-		s.mu.Unlock()
+		close(disconnectChan)
+		server.mutex.Lock()
+		delete(server.clients, connection)
+		server.mutex.Unlock()
 		return
 	}
 
-	nameEntered <- name // ✅ Send name to cancel the timeout
+	nameChan <- clientName
 
-	// ✅ Listen for messages from this client
+	// Listen for messages from this client.
 	for scanner.Scan() {
-		msg := strings.TrimSpace(scanner.Text())
-		if msg == "" {
+		messageText := strings.TrimSpace(scanner.Text())
+		if messageText == "" {
 			continue
 		}
 
-		formattedMsg := FormatChatMessage(
+		// FormatChatMessage is defined in formatter.go.
+		formattedMessage := FormatChatMessage(
 			time.Now().Format("2006-01-02 15:04:05"),
-			name,
-			msg,
+			clientName,
+			messageText,
 		)
-
-		s.broadcast(formattedMsg)
+		server.broadcast(formattedMessage)
 	}
 
-	// ✅ Handle client disconnection
-	s.mu.Lock()
-	delete(s.clients, conn)
-	numUsers = len(s.clients)
-	s.mu.Unlock()
+	server.mutex.Lock()
+	delete(server.clients, connection)
+	activeClients = len(server.clients)
+	server.mutex.Unlock()
 
-	log.Printf("Client disconnected: %s [%d users online]", name, numUsers)
-
-	// ✅ Only broadcast if the client had a name
-	if name != "" {
-		leaveMsg := FormatSystemMessage(fmt.Sprintf("%s has left our chat... [%d users online]", name, numUsers))
-		s.broadcast(leaveMsg)
+	log.Printf("Client disconnected: %s [%d users online]", clientName, activeClients)
+	if clientName != "" {
+		leaveMessage := FormatSystemMessage(fmt.Sprintf("%s has left our chat... [%d users online]", clientName, activeClients))
+		server.broadcast(leaveMessage)
 	}
 }
 
-// sendWelcome writes the welcome message and ASCII logo to the new connection.
-func (s *ChatServer) sendWelcome(conn net.Conn) {
-	// Use the formatter to create a colored welcome message.
-	welcome := FormatWelcomeMessage()
-	conn.Write([]byte(welcome))
+// sendWelcome writes the welcome message to the connection. (Defined in client.go)
+func (server *ChatServer) sendWelcome(connection net.Conn) {
+	connection.Write([]byte(FormatWelcomeMessage()))
 }
 
-// promptName asks the client for their name until a non-empty value is received.
-func (s *ChatServer) promptName(conn net.Conn) (string, error) {
-	// Prompt the client to enter their name.
-	_, err := conn.Write([]byte("[ENTER YOUR NAME]: "))
+// promptName asks the client for their name until a non-empty value is received. (Defined in client.go)
+func (server *ChatServer) promptName(connection net.Conn) (string, error) {
+	_, err := connection.Write([]byte("[ENTER YOUR NAME]: "))
 	if err != nil {
 		return "", err
 	}
 
-	// Create a scanner to read input from the client's connection.
-	scanner := bufio.NewScanner(conn)
-	// Continuously scan for input.
+	scanner := bufio.NewScanner(connection)
 	for scanner.Scan() {
-		// Trim any whitespace from the input to get the name.
 		name := strings.TrimSpace(scanner.Text())
-		// If a non-empty name is provided, return it.
 		if name != "" {
 			return name, nil
 		}
-		// If the name is empty, prompt the client again.
-		conn.Write([]byte("Name cannot be empty. Please enter your name: "))
+		connection.Write([]byte("Name cannot be empty. Please enter your name: "))
 	}
-	// Return an error if the scanner encountered an issue.
 	return "", scanner.Err()
 }
 
-// sendHistory writes the chat history to the newly connected client.
-func (s *ChatServer) sendHistory(conn net.Conn) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for _, msg := range s.history {
-		fmt.Fprintf(conn, "%s\n", msg)
+// sendHistory writes the chat history to the connection. (Defined in client.go)
+func (server *ChatServer) sendHistory(connection net.Conn) {
+	server.mutex.Lock()
+	defer server.mutex.Unlock()
+	for _, pastMessage := range server.history {
+		fmt.Fprintf(connection, "%s\n", pastMessage)
 	}
 }
