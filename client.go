@@ -127,35 +127,3 @@ func (server *ChatServer) handleClient(connection net.Conn) {
 		server.broadcast(leaveMessage)
 	}
 }
-
-// sendWelcome writes the welcome message to the connection. (Defined in client.go)
-func (server *ChatServer) sendWelcome(connection net.Conn) {
-	connection.Write([]byte(FormatWelcomeMessage()))
-}
-
-// promptName asks the client for their name until a non-empty value is received. (Defined in client.go)
-func (server *ChatServer) promptName(connection net.Conn) (string, error) {
-	_, err := connection.Write([]byte("[ENTER YOUR NAME]: "))
-	if err != nil {
-		return "", err
-	}
-
-	scanner := bufio.NewScanner(connection)
-	for scanner.Scan() {
-		name := strings.TrimSpace(scanner.Text())
-		if name != "" {
-			return name, nil
-		}
-		connection.Write([]byte("Name cannot be empty. Please enter your name: "))
-	}
-	return "", scanner.Err()
-}
-
-// sendHistory writes the chat history to the connection. (Defined in client.go)
-func (server *ChatServer) sendHistory(connection net.Conn) {
-	server.mutex.Lock()
-	defer server.mutex.Unlock()
-	for _, pastMessage := range server.history {
-		fmt.Fprintf(connection, "%s\n", pastMessage)
-	}
-}
