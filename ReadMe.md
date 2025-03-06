@@ -1,111 +1,104 @@
-# net-cat
+Net-Cat
 
-net-cat is a Go-based group chat application that mimics key features of the classic NetCat (`nc`) utility. It uses a server-client architecture to allow multiple clients to connect to a central server and exchange messages in real time.
+Net-Cat is a simple TCP-based group chat application written in Go. It mimics the functionality of the classic nc (NetCat) utility and allows multiple clients to connect and communicate in real-time through a central server.
 
-## Features
+Features
 
-- **TCP Server and Clients:** Supports multiple TCP connections.
-- **Default Port Handling:** Listens on port `8989` if no port is specified.
-- **Usage Validation:** Displays a usage message if extra parameters are provided.
-- **Client Name Requirement:** Prompts each client to enter a unique, non-empty username.
-- **Chat History:** New clients receive the entire chat history upon joining.
-- **Message Broadcasting:** Sends messages with a timestamp and sender's name to all connected clients.
-- **Join/Leave Notifications:** Notifies all clients when someone joins or leaves.
-- **Concurrency:** Utilizes goroutines, channels, and mutexes for concurrent operations.
+TCP Server and Clients - Supports multiple simultaneous connections.
 
+User Identification - Clients must enter a unique name upon connection.
 
-## Installation
+Message Broadcasting - Messages are sent to all connected clients with timestamps.
 
-1. **Clone the repository:**
+Join/Leave Notifications - Clients are informed when someone joins or leaves.
 
-   ```bash
-   git clone https://platform.zone01.gr/git/mfoteino/net-cat
-   cd net-cat
+Chat History - New clients receive past messages upon connection.
 
-    Build the project (optional):
+Concurrency Handling - Uses Goroutines, Channels, and Mutexes for efficient operations.
 
-    You can build the binary with:
+Default Port Handling - Defaults to port 8989 if none is specified.
 
-    go build -o net-cat .
+Max Connections Limit - Restricts the chat to 10 concurrent users.
+
+Installation
+
+Clone the repository:
+
+git clone https://platform.zone01.gr/git/mfoteino/net-cat
+cd net-cat
+
+Build the project (optional):
+
+go build -o TCPchat .
 
 Usage
+
 Running the Server
 
-    Default Port (8989):
-
-    Run the server with:
+Default Port (8989):
 
 go run .
 
 Custom Port (e.g., 2525):
 
-Run the server with:
-
 go run . 2525
 
 Invalid Usage:
-If extra parameters are provided (e.g., go run . 2525 localhost), the server displays a usage message:
 
-    [USAGE]: ./TCPChat $port
-
-Connecting as a Client
-
-Use NetCat (nc) or any TCP client to connect to the server. For example, if the server is running on port 8989:
-
-nc localhost 8989
-
-Upon connection, you will see a welcome message with an ASCII art logo and a prompt to enter your username.
-Testing
-
-To verify key functionalities, follow these steps:
-
-    Usage Test:
-    Run the server with extra parameters to confirm that the usage message is triggered:
-
-go run . 2525 localhost
-
-Expected Output:
+If additional parameters are provided, the program returns:
 
 [USAGE]: ./TCPChat $port
 
-Multi-Client Test:
+Connecting as a Client
 
-    Open one terminal and run the server on a custom port:
+Use nc (NetCat) or any TCP client:
+
+nc localhost 8989
+
+Upon connection, you will receive a welcome message and be prompted to enter your username.
+
+Testing
+
+Usage Validation:
+
+go run . 2525 localhost
+
+Expected output:
+
+[USAGE]: ./TCPChat $port
+
+Multi-Client Testing:
+
+Start the server:
 
 go run . 2525
 
-Open two or more separate terminals and connect using:
+Open multiple terminals and connect:
 
-        nc localhost 2525
+nc localhost 2525
 
-    Verify that:
-        Each client receives the welcome message and is prompted for a username.
-        When a client enters a valid name, all connected clients are notified of the new join.
-        Messages are broadcast to all clients with proper timestamps and sender names.
-        A new client receives the complete chat history upon connection.
-        When a client disconnects, the remaining clients receive a notification.
+Verify:
 
-    Multi-Computer Test:
-    Ensure that clients on different computers can connect and exchange messages.
+Clients receive a welcome message and username prompt.
 
-These tests cover functional audit checkpoints such as verifying server port handling, client connectivity, message formatting, broadcast functionality, and proper notifications on join/leave events.
-Project Structure
+Messages appear with timestamps and usernames.
 
-    main.go:
-    Entry point of the application; parses command-line arguments and starts the server.
+New clients receive the chat history.
 
-    server.go:
-    Contains the ChatServer struct and methods for accepting connections, broadcasting messages, and managing chat history.
+Disconnect notifications work.
 
-    client.go:
-    Manages client-specific operations such as prompting for usernames, handling message input/output, and managing disconnections.
+File Structure
 
-    formatter.go:
-    Provides helper functions to format chat messages, system messages, and the welcome banner using ANSI color codes.
+main.go - Entry point; parses arguments and starts the server.
+
+server.go - Manages client connections, message broadcasting, and history.
+
+client.go - Handles user interactions and communication with the server.
+
+formatter.go - Provides formatted messages with ANSI color codes.
 
 License
 
 This project is licensed under the MIT License.
 
-mfoteino , cm
-
+Developed by mfoteino & cm.
