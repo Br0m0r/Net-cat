@@ -1,4 +1,4 @@
-Net-Cat
+Net-Cat 
 
 Net-Cat is a lightweight TCP-based group chat application written in Go. It allows multiple clients to connect, communicate in real-time, and see the conversation history.
 Features
