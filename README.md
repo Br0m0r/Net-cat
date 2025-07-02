@@ -13,7 +13,7 @@ Features
 Installation
 
     Clone the Repository:
-    git clone https://platform.zone01.gr/git/mfoteino/net-cat
+    git clone https://github.com/Br0m0r/Net-cat.git
 
 
 Build the Project (Optional):
@@ -24,7 +24,7 @@ Usage
 Running the Server
 
     Default Port (8989):
-    go run .
+    go run . 
     Custom Port (e.g., 2525):
     go run . 2525
 
