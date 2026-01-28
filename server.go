@@ -1,112 +1,82 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"net"
-	"sync"
+    "fmt"
+    "log"
+    "net"
+    "sync"
 )
 
-// ✅ Maximum number of clients allowed to connect at the same time.
-const maxClients = 3
+const maxClients = 10
 
-// ✅ ChatServer struct manages all server operations.
+// ChatServer owns the listener, clients, and broadcast flow.
 type ChatServer struct {
-	// ✅ Port number where the server listens for connections.
-	port string
-
-	// ✅ TCP listener that waits for incoming connections.
-	listener net.Listener
-
-	// ✅ Map to store all active clients.
-	// Key: net.Conn (client connection), Value: *Client (client struct with details).
-	clients map[net.Conn]*Client
-
-	// ✅ Stores chat history.
-	// Each message is appended so new clients can receive past messages.
-	history []string
-
-	// ✅ Mutex to ensure safe access to shared resources (`clients` map and `history` slice).
-	mu sync.Mutex
-
-	// ✅ Channel used to send messages to all clients.
-	// When a message is sent here, it gets broadcasted to every connected client.
-	broadcastCh chan string
+    port        string
+    listener    net.Listener
+    clients     map[net.Conn]*Client
+    history     []string
+    mu          sync.Mutex
+    broadcastCh chan string
 }
 
-// ✅ NewChatServer initializes and returns a new ChatServer instance.
 func NewChatServer(port string) (*ChatServer, error) {
-	// 🔹 Attempt to start listening on the given port.
-	ln, err := net.Listen("tcp", ":"+port)
-	if err != nil {
-		// 🔹 If the server fails to start, return an error.
-		return nil, err
-	}
+    ln, err := net.Listen("tcp", ":"+port)
+    if err != nil {
+        return nil, err
+    }
 
-	// 🔹 Create a new ChatServer instance with initialized values.
-	server := &ChatServer{
-		port:        port,                       // ✅ Store the listening port.
-		listener:    ln,                         // ✅ Assign the TCP listener.
-		clients:     make(map[net.Conn]*Client), // ✅ Initialize the clients map (empty at start).
-		history:     make([]string, 0),          // ✅ Initialize an empty chat history slice.
-		broadcastCh: make(chan string),          // ✅ Create a channel for broadcasting messages.
-	}
+    server := &ChatServer{
+        port:        port,
+        listener:    ln,
+        clients:     make(map[net.Conn]*Client),
+        history:     make([]string, 0),
+        broadcastCh: make(chan string),
+    }
 
-	return server, nil // 🔹 Return the initialized ChatServer instance.
+    return server, nil
 }
 
-// ✅ Start() - Begins accepting client connections and manages the chat system.
+// Start accepts clients and dispatches handlers.
 func (s *ChatServer) Start() {
-	// 🔹 Start a separate goroutine for handling message broadcasting.
-	go s.handleBroadcast()
+    go s.handleBroadcast()
 
-	// 🔹 Infinite loop to continuously accept new clients.
-	for {
-		// 🔹 Wait for a new connection from a client.
-		conn, err := s.listener.Accept()
-		if err != nil {
-			log.Println("Error accepting connection:", err)
-			continue // 🔹 Skip this iteration and wait for another connection.
-		}
+    for {
+        conn, err := s.listener.Accept()
+        if err != nil {
+            log.Println("Error accepting connection:", err)
+            continue
+        }
 
-		// 🔹 Ensure thread-safe access to the `clients` map.
-		s.mu.Lock()
-		if len(s.clients) >= maxClients { // ✅ Check if max client limit is reached.
-			conn.Write([]byte("Server is full. Try again later.\n")) // 🔹 Inform client.
-			conn.Close()                                             // 🔹 Close the connection.
-			s.mu.Unlock()                                            // 🔹 Release the mutex.
-			return                                                   // 🔹 Exit function to stop further processing.
-		}
+        s.mu.Lock()
+        if len(s.clients) >= maxClients {
+            conn.Write([]byte("Server is full. Try again later.\n"))
+            conn.Close()
+            s.mu.Unlock()
+            continue
+        }
 
-		// ✅ Register the new client in the `clients` map.
-		s.clients[conn] = &Client{conn: conn, name: ""} // 🔹 Temporarily store client with an empty name.
-		s.mu.Unlock()                                   // 🔹 Release the mutex after modifying shared data.
+        s.clients[conn] = &Client{conn: conn, name: ""}
+        s.mu.Unlock()
 
-		// ✅ Handle the client in a separate goroutine.
-		go s.handleClient(conn)
-	}
+        go s.handleClient(conn)
+    }
 }
 
-// ✅ handleBroadcast() - Listens for messages on the broadcast channel and distributes them.
+// handleBroadcast fan-outs messages to all clients and stores history.
 func (s *ChatServer) handleBroadcast() {
-	// 🔹 Loop indefinitely, processing messages sent to `s.broadcastCh`.
-	for msg := range s.broadcastCh {
-		// 🔹 Lock mutex to prevent race conditions while modifying shared resources.
-		s.mu.Lock()
-		s.history = append(s.history, msg) // ✅ Save message in history.
-
-		// ✅ Send the message to each connected client.
-		for conn, client := range s.clients {
-			_, err := fmt.Fprintf(conn, "%s\n", msg) // 🔹 Send message.
-			if err != nil {                          // 🔹 Log any errors while sending.
-				log.Printf("Error sending message to %s: %v", client.name, err)
-			}
-		}
-		s.mu.Unlock() // 🔹 Unlock mutex after processing message.
-	}
+    for msg := range s.broadcastCh {
+        s.mu.Lock()
+        s.history = append(s.history, msg)
+        for conn, client := range s.clients {
+            if _, err := fmt.Fprintf(conn, "%s\n", msg); err != nil {
+                log.Printf("Error sending message to %s: %v", client.name, err)
+            }
+        }
+        s.mu.Unlock()
+    }
 }
 
-// ✅ broadcast() - Sends a message to all connected clients.
+// broadcast queues a message for all connected clients.
 func (s *ChatServer) broadcast(msg string) {
-	s.broadcastCh <- msg // 🔹 Add message to the broadcast channel.
+    s.broadcastCh <- msg
 }

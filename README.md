@@ -1,47 +1,32 @@
-Net-Cat 
+Net-Cat (TCP Chat)
 
-Net-Cat is a lightweight TCP-based group chat application written in Go. It allows multiple clients to connect, communicate in real-time, and see the conversation history.
+Overview
+A lightweight TCP group chat in Go that mimics netcat-style usage with usernames, timestamps, join/leave notices, and history on join.
+
 Features
-
-    Multiple Clients: Supports up to 10 simultaneous connections.
-    Usernames: Clients must choose a unique username.
-    Message Broadcasting: All messages are broadcast to every connected client with a timestamp.
-    Notifications: Clients are notified when users join or leave the chat.
-    Chat History: New clients receive the chat history upon connection.
-    Default Port: Listens on port 8989 by default.
-
-Installation
-
-    Clone the Repository:
-    git clone https://github.com/Br0m0r/Net-cat.git
-
-
-Build the Project (Optional):
-
-    go build -o TCPchat .
+- TCP server with multiple clients (max 10)
+- Unique, non-empty usernames required
+- Timestamped messages: [YYYY-MM-DD HH:MM:SS][username]:message
+- Join/leave notifications
+- History replay for new clients
+- Default port 8989
 
 Usage
-Running the Server
+- Default port:
+  go run .
+- Custom port:
+  go run . 2525
+- Invalid usage:
+  [USAGE]: ./TCPChat $port
 
-    Default Port (8989):
-    go run . 
-    Custom Port (e.g., 2525):
-    go run . 2525
+Client
+- Connect with nc:
+  nc localhost 8989
+- You will see the ASCII logo and be prompted:
+  [ENTER YOUR NAME]:
 
-Invalid Usage: If you provide more than one argument, the program will display:
-
-    [USAGE]: ./TCPChat $port
-
-Connecting as a Client
-
-    You can use any TCP client (such as nc):
-    nc localhost 8989
-
-When connected, you'll see a welcome message and be prompted for your username.
-    
-                                     File Structure
-
-    main.go: Entry point; handles command-line arguments and starts the server.
-    server.go: Manages client connections, message broadcasting, and chat history.
-    client.go: Handles user interactions and message processing.
-    formatter.go: Provides formatted output with ANSI color codes.
+Files
+- main.go: CLI parsing, server start
+- server.go: accept loop, broadcast, history
+- client.go: per-client session, name handshake
+- formatter.go: ANSI colors + ASCII art
