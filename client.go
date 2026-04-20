@@ -1,12 +1,12 @@
 package main
 
 import (
-    "bufio"
-    "fmt"
-    "log"
-    "net"
-    "strings"
-    "time"
+	"bufio"
+	"fmt"
+	"log"
+	"net"
+	"strings"
+	"time"
 )
 
 type Client struct {
@@ -14,7 +14,6 @@ type Client struct {
     name string
 }
 
-// handleClient manages one client connection from handshake to disconnect.
 func (s *ChatServer) handleClient(conn net.Conn) {
     defer conn.Close()
 
@@ -29,7 +28,6 @@ func (s *ChatServer) handleClient(conn net.Conn) {
     nameEntered := make(chan string, 1)
     disconnected := make(chan struct{})
 
-    // Enforce a name entry timeout while allowing disconnects.
     go func() {
         select {
         case <-time.After(30 * time.Second):
@@ -65,7 +63,6 @@ func (s *ChatServer) handleClient(conn net.Conn) {
     var name string
     conn.Write([]byte(FormatSystemMessage("[ENTER YOUR NAME]: ")))
 
-    // Name input loop: require non-empty, unique username.
     for scanner.Scan() {
         name = strings.TrimSpace(scanner.Text())
 
@@ -99,7 +96,6 @@ func (s *ChatServer) handleClient(conn net.Conn) {
 
     nameEntered <- name
 
-    // Message loop: ignore empty lines and broadcast formatted messages.
     for scanner.Scan() {
         msg := strings.TrimSpace(scanner.Text())
         if msg == "" {

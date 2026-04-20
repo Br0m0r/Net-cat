@@ -1,12 +1,11 @@
 package main
 
 import (
-    "fmt"
-    "log"
-    "os"
+	"fmt"
+	"log"
+	"os"
 )
 
-// Starts the chat server on the provided port or default 8989.
 func main() {
     args := os.Args[1:]
     var port string

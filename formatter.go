@@ -2,7 +2,6 @@ package main
 
 import "fmt"
 
-// ANSI color codes for terminal output.
 const (
     ColorReset   = "\033[0m"
     ColorRed     = "\033[31m"
@@ -18,7 +17,6 @@ const (
     BrightCyan  = "\033[96m"
 )
 
-// FormatWelcomeMessage returns the colored welcome banner.
 func FormatWelcomeMessage() string {
     logo := "         _nnnn_\n" +
         "        dGGGGMMb\n" +
@@ -31,7 +29,7 @@ func FormatWelcomeMessage() string {
         "   fZP            SMMb\n" +
         "   HZM            MMMM\n" +
         "   FqM            MMMM\n" +
-        " __| ".        |\\dS"qML\n" +
+        " __| \".        |\\dS\"qML\n" +
         " |    `.       | `' \\Zq\n" +
         "_)      \\.___.,|     .'\n" +
         "\\____   )MMMMMP|   .'\n" +

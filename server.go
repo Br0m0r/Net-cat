@@ -1,15 +1,14 @@
 package main
 
 import (
-    "fmt"
-    "log"
-    "net"
-    "sync"
+	"fmt"
+	"log"
+	"net"
+	"sync"
 )
 
 const maxClients = 10
 
-// ChatServer owns the listener, clients, and broadcast flow.
 type ChatServer struct {
     port        string
     listener    net.Listener
@@ -36,7 +35,6 @@ func NewChatServer(port string) (*ChatServer, error) {
     return server, nil
 }
 
-// Start accepts clients and dispatches handlers.
 func (s *ChatServer) Start() {
     go s.handleBroadcast()
 
@@ -62,7 +60,6 @@ func (s *ChatServer) Start() {
     }
 }
 
-// handleBroadcast fan-outs messages to all clients and stores history.
 func (s *ChatServer) handleBroadcast() {
     for msg := range s.broadcastCh {
         s.mu.Lock()
@@ -76,7 +73,6 @@ func (s *ChatServer) handleBroadcast() {
     }
 }
 
-// broadcast queues a message for all connected clients.
 func (s *ChatServer) broadcast(msg string) {
     s.broadcastCh <- msg
 }
